@@ -1,8 +1,8 @@
 # Plan — Safety Assessment (High-Energy Control Assessment)
 
-**Status: 🚧 PR 1 core shipped on `feat/safety-assessment-heca` (built on the structured-vision substrate).**
-Plan refined 2026-06-18 (structured-output + catalog); revised + built 2026-06-19 on the now-shipped
-**Structured Vision Assessment** substrate (`docs/plans/structured-vision-assessment.md`). 18 tests, Debug green.
+**Status: ✅ Shipped (PR 1–3) on the structured-vision substrate.**
+Plan refined 2026-06-18 (structured-output + catalog); built 2026-06-19 across three PRs on the
+**Structured Vision Assessment** substrate (`docs/plans/structured-vision-assessment.md`). 46 HECA tests, Debug green.
 
 > **Revision — build on the substrate.** The substrate already provides the provider-agnostic forced
 > structured-output call (`LLMService.analyzeFrameStructured`), per-provider parsing
@@ -17,10 +17,13 @@ Plan refined 2026-06-18 (structured-output + catalog); revised + built 2026-06-1
 >    via `StructuredVisionService.present(_:)`) + a Field-Assist-gated **`safety_assessment`** tool.
 >
 > **PR 1 (`feat/safety-assessment-heca`, merged):** items 1–3 + tests + the gated tool, end-to-end via the substrate.
-> **PR 2 (`feat/heca-report-history`):** `SafetyAssessmentStore` (persist + history) + `score`/`history` tool
-> actions + `SafetyAssessmentReportView` + `SafetyAssessmentOverlay` views.
-> **Still deferred:** PDF export via `SessionExporter`, the Field-Assist session-step hook, the image-seeded
-> advisor chat, and wiring a tap-to-open entry point to the report view.
+> **PR 2 (`feat/heca-report-history`, merged):** `SafetyAssessmentStore` (persist + history) + `score`/`history`
+> tool actions + `SafetyAssessmentReportView` + `SafetyAssessmentOverlay` views.
+> **PR 3 (`feat/heca-export-advisor`):** `SafetyReportPDF` + `export` action; Field-Assist session-step
+> logging (`.safetyAssessment` audit event); the image-seeded **advisor** (`ask` action, radio-style
+> safety-partner prompt, keeps the assessed frame in context); and the tap-to-open "View full report" entry
+> from the result card. **HECA complete.** (Optional future polish: a one-page session-export integration
+> and bundled sample frames for a demo.)
 
 **Strategic fit:** A B2B safety capability that slots into the **Field Assist** line: a technician glances at a job site and gets a structured, audited assessment of the **high-energy hazards** present and whether each is safeguarded by a *direct* control. Grounded in the published EEI / Construction Safety Research Alliance (CSRA) energy-based "Serious Injury & Fatality (SIF) prevention" methodology — the same vault/procedure/audit shape we already ship, applied to safety. Utilities and construction are exactly the verticals Field Assist targets, and SIF-prevention is a budgeted, regulated spend.
 
