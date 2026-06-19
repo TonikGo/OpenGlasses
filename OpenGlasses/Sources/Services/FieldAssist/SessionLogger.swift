@@ -54,6 +54,7 @@ final class SessionLogger {
             case escalationRequested = "escalation_requested"
             case escalationResolved = "escalation_resolved"
             case citation = "citation"
+            case safetyAssessment = "safety_assessment"
             case error = "error"
         }
     }

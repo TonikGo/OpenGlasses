@@ -13,7 +13,8 @@ struct SafetyAssessmentTool: NativeTool {
     detects the 13 high-energy serious-injury/fatality hazards and whether each is safeguarded by a DIRECT \
     control, and returns a summary plus a HECA score. Use for "assess this site", "is this safe?", "safety \
     check". Actions: run (assess now), last (repeat the latest result), score (just the latest HECA score), \
-    history (recent assessments). Advisory only — verify on site; not a certified inspection.
+    history (recent assessments), export (PDF of the latest report), ask (image-seeded safety-advisor \
+    follow-up about the last scene — pass 'question'). Advisory only — verify on site; not a certified inspection.
     """
 
     var parametersSchema: [String: Any] {
@@ -22,8 +23,12 @@ struct SafetyAssessmentTool: NativeTool {
             "properties": [
                 "action": [
                     "type": "string",
-                    "enum": ["run", "last", "score", "history"],
-                    "description": "run a new assessment, repeat the last result, report just the latest score, or list recent assessments."
+                    "enum": ["run", "last", "score", "history", "export", "ask"],
+                    "description": "run, last, score, history, export (PDF), or ask (advisor follow-up — needs 'question')."
+                ],
+                "question": [
+                    "type": "string",
+                    "description": "For action=ask: the safety follow-up question about the last assessed scene."
                 ]
             ],
             "required": [] as [String]
@@ -52,6 +57,20 @@ struct SafetyAssessmentTool: NativeTool {
                 return "• HECA \(s) — \(r.present.count) hazard(s): \(r.summary)"
             }
             return "Recent safety assessments:\n" + lines.joined(separator: "\n")
+        case "export":
+            guard let report = service.latest else {
+                return "No safety assessment to export yet. Say \"assess this site\" first."
+            }
+            do {
+                let url = try SafetyReportPDF.write(report)
+                return "Exported safety report PDF: \(url.lastPathComponent). It's saved and ready to share."
+            } catch {
+                return "Couldn't create the PDF: \(error.localizedDescription)"
+            }
+        case "ask":
+            let question = (args["question"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            guard !question.isEmpty else { return "What would you like to ask about the site?" }
+            return await service.ask(question)
         default:
             do {
                 let report = try await service.assessCurrentFrame()

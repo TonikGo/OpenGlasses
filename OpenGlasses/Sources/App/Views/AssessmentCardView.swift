@@ -6,6 +6,8 @@ import SwiftUI
 struct AssessmentCardView: View {
     let card: AssessmentCard
     var onDismiss: () -> Void
+    /// Optional "View full report" affordance for cards backed by a rich detail view (e.g. HECA).
+    var onDetails: (() -> Void)? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -40,6 +42,15 @@ struct AssessmentCardView: View {
                             .font(.caption).foregroundStyle(.secondary)
                     }
                 }
+            }
+
+            if let onDetails {
+                Button(action: onDetails) {
+                    Label("View full report", systemImage: "doc.text.magnifyingglass")
+                        .font(.subheadline.weight(.semibold))
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(AppAccent.aiCoral)
             }
 
             footer
@@ -131,17 +142,29 @@ struct AssessmentCardView: View {
 /// Overlay that presents the latest `AssessmentCard` over the main UI. Hosted by `RootView`.
 struct AssessmentCardOverlay: View {
     @ObservedObject private var vision = StructuredVisionService.shared
+    @ObservedObject private var safety = SafetyAssessmentService.shared
+    @State private var showingReport = false
 
     var body: some View {
         if let card = vision.latest {
+            let canShowReport = card.kind == "safety_assessment" && safety.latest != nil
             VStack {
                 Spacer()
-                AssessmentCardView(card: card) { vision.dismiss() }
+                AssessmentCardView(card: card,
+                                   onDismiss: { vision.dismiss() },
+                                   onDetails: canShowReport ? { showingReport = true } : nil)
                     .padding(.horizontal, 16)
                     .padding(.bottom, 24)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
             .animation(.spring(response: 0.4, dampingFraction: 0.85), value: vision.latest)
+            .sheet(isPresented: $showingReport) {
+                if let report = safety.latest {
+                    SafetyAssessmentReportView(report: report, image: safety.lastImage) {
+                        showingReport = false
+                    }
+                }
+            }
         }
     }
 }

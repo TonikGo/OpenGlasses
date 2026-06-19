@@ -94,4 +94,61 @@ final class SafetyAssessmentServiceTests: XCTestCase {
         XCTAssertTrue(result.contains("Recent safety assessments"))
         XCTAssertTrue(result.contains("HECA 50%"))
     }
+
+    // MARK: - Frame retention + session log
+
+    func testAssessRetainsFrameAndLogsToSession() async throws {
+        let (svc, _) = makeService()
+        var logged: SafetyReport?
+        svc.sessionLog = { logged = $0 }
+        _ = try await svc.assess(imageData: Data([0x1, 0x2, 0x3]))
+        XCTAssertNotNil(svc.lastImageData)
+        XCTAssertNotNil(logged)
+    }
+
+    // MARK: - Advisor
+
+    func testAdvisorUserTextIncludesFindingsAndQuestion() throws {
+        let report = try SafetyReport.from(json: fixture)
+        let text = SafetyAssessmentService.advisorUserText(report: report, question: "does tape count as direct?")
+        XCTAssertTrue(text.contains("Trench / Excavation"))
+        XCTAssertTrue(text.contains("does tape count as direct?"))
+    }
+
+    func testAskUsesAdviseSeam() async throws {
+        let (svc, _) = makeService()
+        svc.advise = { _, _, _ in "Use a trench box." }
+        _ = try await svc.assess(imageData: Data([0x1]))
+        let answer = await svc.ask("how do I control the trench?")
+        XCTAssertEqual(answer, "Use a trench box.")
+    }
+
+    func testAskWithoutAssessmentGuides() async {
+        let svc = SafetyAssessmentService()
+        svc.structuredVision = StructuredVisionService()
+        let answer = await svc.ask("anything?")
+        XCTAssertTrue(answer.localizedCaseInsensitiveContains("run a safety assessment"))
+    }
+
+    // MARK: - Tool export / ask
+
+    func testToolExportReturnsPDFPath() async throws {
+        isolateShared()
+        _ = try await SafetyAssessmentService.shared.assess(imageData: Data())
+        let result = try await SafetyAssessmentTool().execute(args: ["action": "export"])
+        XCTAssertTrue(result.contains(".pdf"))
+    }
+
+    func testToolAskRoutesToAdvisor() async throws {
+        isolateShared()
+        SafetyAssessmentService.shared.advise = { _, _, _ in "Add fall arrest." }
+        _ = try await SafetyAssessmentService.shared.assess(imageData: Data([0x1]))
+        let result = try await SafetyAssessmentTool().execute(args: ["action": "ask", "question": "fix?"])
+        XCTAssertEqual(result, "Add fall arrest.")
+    }
+
+    func testToolAskWithoutQuestionPrompts() async throws {
+        let result = try await SafetyAssessmentTool().execute(args: ["action": "ask"])
+        XCTAssertTrue(result.localizedCaseInsensitiveContains("what would you like to ask"))
+    }
 }

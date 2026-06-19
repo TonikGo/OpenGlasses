@@ -203,6 +203,13 @@ final class FieldSessionService: ObservableObject {
         logger?.appendAssistantMessage(text, citations: citations)
     }
 
+    /// Append a HECA safety-assessment event to the active session's audit log (no-op if no session).
+    func logSafetyAssessment(summary: String, score: Double?) {
+        logger?.append(SessionLogger.Event(
+            timestamp: Date(), kind: .safetyAssessment, text: summary,
+            payload: score.map { ["heca_score": AnyCodable($0)] }))
+    }
+
     /// Offline store-and-forward queue (Plan T). Set by AppState. Photo captures are written to
     /// disk durably by the logger; we additionally enqueue an upload op so the evidence syncs to a
     /// backend when one exists — best-effort, never blocking the capture.
