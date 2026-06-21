@@ -14,18 +14,60 @@ struct TeleprompterSettingsView: View {
     @State private var draftTitle = ""
     @State private var draftText = ""
 
+    @State private var scanStatus = ""
+    @State private var isScanning = false
+
     var body: some View {
         Form {
             if service.isActive {
                 nowPlayingSection
             }
             pacingSection
+            captureSection
             newScriptSection
             savedScriptsSection
             ingestionHintSection
         }
         .navigationTitle("Teleprompter")
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    // MARK: - Camera capture (Phase 4)
+
+    private var captureSection: some View {
+        Section {
+            Button {
+                Task {
+                    isScanning = true
+                    scanStatus = await service.scanPage()
+                    isScanning = false
+                }
+            } label: {
+                Label(isScanning ? "Scanning…" : "Scan a page (camera)", systemImage: "doc.viewfinder")
+            }
+            .disabled(isScanning)
+
+            if service.hasScannedPages {
+                Text("\(service.scanPages) page\(service.scanPages == 1 ? "" : "s") captured")
+                    .font(.caption).foregroundStyle(.secondary)
+                Button {
+                    service.startScannedScript()
+                } label: {
+                    Label("Start from scan", systemImage: "play.fill")
+                }
+                .buttonStyle(.borderedProminent)
+                Button("Save scan as script") { service.saveScannedScript() }
+                Button("Clear scan", role: .destructive) { service.clearScan() }
+            }
+
+            if !scanStatus.isEmpty {
+                Text(scanStatus).font(.caption).foregroundStyle(.secondary)
+            }
+        } header: {
+            Text("Capture from camera")
+        } footer: {
+            Text("Point the glasses at a printed or written script and scan it. Repeat for multiple pages, then start.")
+        }
     }
 
     // MARK: - Now playing

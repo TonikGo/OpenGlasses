@@ -683,6 +683,8 @@ class AppState: ObservableObject, AppStateProtocol {
         // Teleprompter (Phase 2): shared audio engine for live recognition + the in-lens HUD.
         teleprompterService.wakeWordService = wakeWordService
         teleprompterService.glassesDisplay = glassesDisplay
+        // Phase 4: glasses camera for OCR script capture (OCR uses the default OCRService seam).
+        teleprompterService.camera = cameraService
         memoryRewind.wakeWordService = wakeWordService
         videoRecorder.wakeWordService = wakeWordService
         videoRecorder.ambientCaptionService = ambientCaptions
