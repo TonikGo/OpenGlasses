@@ -1,8 +1,11 @@
 # Plan — Teleprompter (audio-paced HUD script)
 
-**Status:** 📋 Planned (not built). The deterministic core (script model, paginator, speech
-alignment) is fully headless-testable; only the live HUD render + streaming recognition are
-device-pending — same posture as the rest of the display work.
+**Status:** ✅ Built (Phases 1–4). Pure core (PR #95), audio-paced live mode + ingestion
+(tool/Settings/store/App-Intent/paste, PR #96), Share Extension (PR #98), and vision/OCR
+capture (this PR) are all on `main`. Device-pending only: live streaming-recognition
+behaviour, the share-sheet selection flow, and on-glasses camera scan — same posture as the
+rest of the display work. Optional remaining: a Document-RAG source adapter (deferred — the
+RAG store exposes semantic passages, not clean full-document text).
 
 A hands-free teleprompter: your script shows on the in-lens HUD a window at a time, and it
 **keeps your place by listening to what you actually say** — advancing as you speak. Voice
@@ -123,8 +126,11 @@ Touch:
    alongside. (Streaming-recognition behaviour is device-pending; the aligner is proven in 1.)
 3. **Ingestion** — `teleprompter` tool + Settings + `TeleprompterScriptStore`; **Share Sheet**
    + **`AddTeleprompterScriptIntent`** (Apple Notes / Reminders / Files via Shortcuts) + paste.
-4. **Vision capture (second)** — camera → `OCRService` multi-page scan → script. Document-RAG
-   source as an optional adapter.
+4. **Vision capture (second)** ✅ — `teleprompter` tool `scan` action + Settings "Capture from
+   camera": glasses camera → `OCRService` multi-page scan → buffer → `start`/`save`, mirroring
+   the Study-Mode scan pattern (OCR is an injectable seam, so the flow is unit-tested). The
+   Document-RAG source adapter is deferred (the RAG store has no clean full-document-text
+   accessor — only semantic passages).
 
 ## Tests
 - Tokenizer: punctuation/case/number normalization; line/paragraph indices.

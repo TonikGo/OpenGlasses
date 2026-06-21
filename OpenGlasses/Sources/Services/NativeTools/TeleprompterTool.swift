@@ -10,7 +10,8 @@ struct TeleprompterTool: NativeTool {
     let name = "teleprompter"
     let description = """
         Hands-free teleprompter on the in-lens HUD. Shows a script a window at a time and \
-        (in audio-paced mode) auto-advances by listening to you read.
+        (in audio-paced mode) auto-advances by listening to you read. Can also capture a \
+        printed/written script via the glasses camera (action=scan, then start).
         """
     let parametersSchema: [String: Any] = [
         "type": "object",
@@ -18,8 +19,8 @@ struct TeleprompterTool: NativeTool {
             "action": [
                 "type": "string",
                 "enum": ["start", "stop", "pause", "resume", "next", "back", "restart",
-                         "faster", "slower", "list", "save"],
-                "description": "What to do."
+                         "faster", "slower", "list", "save", "scan"],
+                "description": "What to do. 'scan' captures a page through the glasses camera and OCRs it; repeat to add pages, then 'start' (or 'save')."
             ],
             "text": [
                 "type": "string",
@@ -63,7 +64,12 @@ struct TeleprompterTool: NativeTool {
             if scriptName != nil {
                 return "I couldn't find a saved script named \"\(scriptName!)\". Say \"list\" to see saved scripts."
             }
-            return "Provide the script text, or a saved script name, to start the teleprompter."
+            if service.hasScannedPages {
+                let pages = service.scanPages
+                service.startScannedScript(title: title, mode: mode)
+                return "Teleprompter started from \(pages) scanned page\(pages == 1 ? "" : "s") (\(service.mode.displayName))."
+            }
+            return "Provide the script text, a saved script name, or scan a page first."
 
         case "stop":
             guard service.isActive else { return "The teleprompter isn't running." }
@@ -111,13 +117,21 @@ struct TeleprompterTool: NativeTool {
             let names = scripts.prefix(20).map { "• \($0.title)" }.joined(separator: "\n")
             return "Saved scripts:\n\(names)"
 
+        case "scan":
+            return await service.scanPage()
+
         case "save":
-            guard let text, !text.isEmpty else { return "Provide the script text to save." }
-            let saved = service.store.add(title: title ?? "", text: text)
-            return "Saved teleprompter script \"\(saved.title)\"."
+            if let text, !text.isEmpty {
+                let saved = service.store.add(title: title ?? "", text: text)
+                return "Saved teleprompter script \"\(saved.title)\"."
+            }
+            if let saved = service.saveScannedScript(title: title) {
+                return "Saved scanned teleprompter script \"\(saved.title)\"."
+            }
+            return "Provide the script text to save, or scan a page first."
 
         default:
-            return "Unknown action. Use start, stop, pause, resume, next, back, restart, faster, slower, list, or save."
+            return "Unknown action. Use start, stop, pause, resume, next, back, restart, faster, slower, list, save, or scan."
         }
     }
 

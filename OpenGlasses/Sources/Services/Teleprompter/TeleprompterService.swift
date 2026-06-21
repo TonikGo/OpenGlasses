@@ -52,6 +52,18 @@ final class TeleprompterService: ObservableObject {
     /// on-phone mirror and headless tests can observe the exact frames.
     weak var glassesDisplay: GlassesDisplayService?
 
+    /// Glasses camera for vision capture (Phase 4). When nil (tests / no glasses), `scanPage`
+    /// reports unavailable; `ingestScannedImage` is driven directly instead.
+    weak var camera: CameraService?
+    /// JPEG → recognized text (on-device OCR). Injectable so the scan flow is unit-testable
+    /// without Vision or a camera; defaults to `OCRService`.
+    var ocr: ((Data) async -> String)? = { await OCRService().recognizeText(in: $0).text }
+
+    /// Accumulated OCR'd text from one or more captured pages, awaiting "start"/"save".
+    @Published private(set) var scanBuffer = ""
+    @Published private(set) var scanPages = 0
+    var hasScannedPages: Bool { scanPages > 0 }
+
     private(set) var script: TeleprompterScript?
     private var normalizedTokens: [String] = []
     private(set) var cursor = 0
@@ -168,6 +180,69 @@ final class TeleprompterService: ObservableObject {
             cursor = 0
         }
         render()
+    }
+
+    // MARK: - Vision capture (Phase 4: camera → OCR → script)
+
+    /// Capture the current camera view and OCR it into the scan buffer. Returns a spoken status.
+    func scanPage() async -> String {
+        guard let camera else { return "Camera unavailable — connect the glasses to scan a page." }
+        let data: Data
+        if let frame = camera.latestFrame, let jpeg = frame.jpegData(compressionQuality: 0.8) {
+            data = jpeg
+        } else if let captured = try? await camera.capturePhoto() {
+            data = captured
+        } else {
+            return "I couldn't capture the page. Point the glasses at it and try again."
+        }
+        return await ingestScannedImage(data)
+    }
+
+    /// OCR a captured page and append it to the scan buffer. Pure of the camera (the OCR is an
+    /// injectable seam), so the scan→script flow is unit-testable. Returns a spoken status.
+    @discardableResult
+    func ingestScannedImage(_ data: Data) async -> String {
+        guard let ocr else { return "Scanning isn't available right now." }
+        let text = await ocr(data).trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else {
+            return "I couldn't read any text on that page. Try again with better lighting."
+        }
+        scanBuffer += (scanBuffer.isEmpty ? "" : "\n\n") + text
+        scanPages += 1
+        return "Captured page \(scanPages) (\(text.count) characters). Scan another page, or start the teleprompter."
+    }
+
+    func clearScan() {
+        scanBuffer = ""
+        scanPages = 0
+    }
+
+    /// Build a `TeleprompterScript` from the accumulated scan buffer (nil when empty).
+    private func scannedScript(title: String?) -> TeleprompterScript? {
+        let text = scanBuffer.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return nil }
+        let name = (title?.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap { $0.isEmpty ? nil : $0 }
+            ?? SavedScript.deriveTitle(from: text)
+        return TeleprompterScript.parse(title: name, text: text)
+    }
+
+    /// Start prompting from the scanned pages, then clear the buffer. Returns false if nothing scanned.
+    @discardableResult
+    func startScannedScript(title: String? = nil, mode: PacingMode? = nil) -> Bool {
+        guard let script = scannedScript(title: title) else { return false }
+        start(script, mode: mode)
+        clearScan()
+        return true
+    }
+
+    /// Save the scanned pages as a stored script, then clear the buffer. Returns nil if nothing scanned.
+    @discardableResult
+    func saveScannedScript(title: String? = nil) -> SavedScript? {
+        let text = scanBuffer.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return nil }
+        let saved = store.add(title: title ?? "", text: text)
+        clearScan()
+        return saved
     }
 
     // MARK: - Speed (live)
