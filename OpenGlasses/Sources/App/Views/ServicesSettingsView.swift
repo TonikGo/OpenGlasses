@@ -252,6 +252,22 @@ struct ServicesSettingsView: View {
             }
             .onAppear { asrDownloader.refreshState() }
 
+            // MARK: Diarization
+            Section {
+                NavigationLink {
+                    DiarizationSettingsView()
+                } label: {
+                    HStack {
+                        Label("Diarization", systemImage: "person.2.wave.2")
+                        Spacer()
+                        Text(Config.isDiarizationConfigured ? "On" : "Off")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            } footer: {
+                Text("Label captions and meeting transcripts by speaker (\u{201C}who said what\u{201D}) via Deepgram. Off by default.")
+            }
+
             // MARK: Web Search
             Section {
                 SecureField("API Key", text: $perplexityKeyInput)
