@@ -18,6 +18,11 @@ final class LiveTranslationService: ObservableObject {
     private var audioEngine: AVAudioEngine?
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
+    /// Coexisting hold with the audio-session coordinator. Translation runs *under* the current
+    /// owner (the wake-word listener that triggered it) using `.measurement`/`.mixWithOthers`, so it
+    /// registers as a non-exclusive rider rather than acquiring the session — it must not preempt
+    /// or deactivate it.
+    private var coexistToken: UUID?
 
     /// Callback when a translation is ready to be spoken
     var onTranslation: ((String) -> Void)?
@@ -52,6 +57,7 @@ final class LiveTranslationService: ObservableObject {
         lastTranslatedText = ""
 
         startListening()
+        coexistToken = AudioSessionCoordinator.shared.beginCoexisting(.liveTranslation)
         print("🌍 Live translation started: \(source) → \(target)")
     }
 
@@ -65,6 +71,10 @@ final class LiveTranslationService: ObservableObject {
         audioEngine?.stop()
         audioEngine?.inputNode.removeTap(onBus: 0)
         audioEngine = nil
+        if let token = coexistToken {
+            coexistToken = nil
+            AudioSessionCoordinator.shared.endCoexisting(token)
+        }
         print("🌍 Live translation stopped. \(translationCount) translations.")
     }
 

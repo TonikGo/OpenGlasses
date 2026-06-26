@@ -26,6 +26,30 @@ final class AudioSessionCoordinator: @unchecked Sendable {
         stateQueue.sync { ledger.current?.owner }
     }
 
+    /// Complete snapshot of who is using audio right now: the exclusive owner (if any) plus any
+    /// non-exclusive coexisting riders. The single source of truth for diagnostics / future
+    /// precedence decisions.
+    var audioActivity: (owner: AudioSessionOwner?, coexisting: [AudioSessionOwner]) {
+        stateQueue.sync { (ledger.current?.owner, ledger.coexistingOwners) }
+    }
+
+    /// Register a non-exclusive coexisting hold — for subsystems that use the shared session
+    /// *under* the current exclusive owner (live translation listening mid-conversation, TTS
+    /// output) and must NOT preempt it or deactivate it. They keep their own session configuration;
+    /// this only records that they're active. Return the token to `endCoexisting` later.
+    @discardableResult
+    func beginCoexisting(_ owner: AudioSessionOwner) -> UUID {
+        let token = UUID()
+        stateQueue.sync { ledger.beginCoexisting(owner, token: token) }
+        NSLog("[AudioCoordinator] coexisting hold begin: %@", owner.rawValue)
+        return token
+    }
+
+    /// End a coexisting hold. Never deactivates the session (the exclusive owner is untouched).
+    func endCoexisting(_ token: UUID) {
+        stateQueue.sync { ledger.endCoexisting(token: token) }
+    }
+
     /// Record `owner` as the current holder **without** performing activation — for subsystems
     /// that manage their own hand-tuned session configuration (notably the always-on wake-word
     /// listener, whose `mixWithOthers` pause/resume behaviour must stay exactly as-is) but still

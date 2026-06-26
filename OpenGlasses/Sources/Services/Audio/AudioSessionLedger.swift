@@ -13,6 +13,7 @@ enum AudioSessionOwner: String, Sendable, CaseIterable {
     case geminiLive
     case openAIRealtime
     case expertCall
+    case textToSpeech
 }
 
 /// A claim on the shared session: who holds it, an opaque token identifying this exact claim, and a
@@ -50,6 +51,12 @@ struct AudioSessionLedger {
     private(set) var current: AudioSessionLease?
     private var generation: UInt64 = 0
 
+    /// Non-exclusive coexisting holds (live translation listening, TTS output) keyed by an opaque
+    /// token. These run *under* the current exclusive owner — they never preempt it, and ending one
+    /// never deactivates the session. Pure bookkeeping so `audioActivity` is a complete picture of
+    /// who's using audio; it deliberately does not change the exclusive owner's activation.
+    private(set) var coexisting: [UUID: AudioSessionOwner] = [:]
+
     init() {}
 
     /// Make `owner` the current holder, superseding any previous lease.
@@ -73,5 +80,23 @@ struct AudioSessionLedger {
             return .deactivate
         }
         return .superseded(by: active.owner)
+    }
+
+    /// Register a non-exclusive coexisting hold (does not touch the exclusive owner).
+    mutating func beginCoexisting(_ owner: AudioSessionOwner, token: UUID) {
+        coexisting[token] = owner
+    }
+
+    /// End a coexisting hold. No effect on the exclusive owner — never deactivates.
+    mutating func endCoexisting(token: UUID) {
+        coexisting[token] = nil
+    }
+
+    /// The owners of the currently active coexisting holds, deduplicated and ordered.
+    var coexistingOwners: [AudioSessionOwner] {
+        var seen = Set<AudioSessionOwner>()
+        return AudioSessionOwner.allCases.filter { owner in
+            coexisting.values.contains(owner) && seen.insert(owner).inserted
+        }
     }
 }

@@ -1,10 +1,11 @@
 # Plan — Audio-Session Lease Coordinator (single owner of the shared `AVAudioSession`)
 
-**Status:** 🚧 Foundation + realtime + wake-word adopters shipped. The deterministic
+**Status:** 🚧 Foundation + all exclusive owners + coexisting riders shipped. The deterministic
 `AudioSessionLedger` core is headless-tested; the live `AudioSessionCoordinator` seam is in place and
-adopted by the two realtime managers (`acquire`/`release`) and the always-on wake-word baseline
-(`assumeOwnership`/`release`). Remaining adoption (TTS duck, live translation, transcription, trimming
-AppState orchestration) is the documented next increment. No new SPM dependency.
+adopted by the two realtime managers + wake-word baseline (exclusive owners) and live translation +
+TTS (coexisting riders). The coordinator is now the complete source of truth for audio usage
+(`audioActivity`). The only remaining item — trimming `AppState.switchMode`'s hardware-settling
+sleep — needs on-device validation. No new SPM dependency.
 
 **Update (wake-word increment):** `WakeWordService` now registers as the baseline `.wakeWord` owner
 via a new register-only `AudioSessionCoordinator.assumeOwnership(_:)` — it keeps its hand-tuned
@@ -68,15 +69,26 @@ Wraps the ledger behind a serial state queue and performs the real work:
   reference-counted `pauseOtherAudio`/`resumeOtherAudio` hold are **untouched** — they manage the
   `mixWithOthers` option while wake word owns the session, not ownership itself.
 
-**Deferred (documented next increments):**
-- **`LiveTranslationService`** — uses `.measurement` + `.mixWithOthers` by design (gentle
-  coexistence) and never deactivates on stop; routing it through the coordinator changes that
-  semantic, so it needs a deliberate decision.
-- **`TranscriptionService`** — reuses the wake-word engine; follows wake-word adoption.
-- **`TextToSpeechService`** — a ducking rider, not an exclusive owner; map onto the coordinator as a
-  non-exclusive "duck" rather than a session claim.
-- **`AppState.switchMode`** — once owners hand off through the coordinator, the manual
-  *stop → sleep 500 ms → start* can be tightened/removed.
+**Now modelled as coexisting riders (non-exclusive holds):**
+- **`LiveTranslationService`** — `live_translate` is an agent tool invoked *mid-conversation*, so
+  translation runs **under** the wake-word session it was triggered from, using `.measurement` +
+  `.mixWithOthers` and never deactivating on stop. Making it an exclusive owner (preempt + deactivate)
+  would tear down the wake-word listener that's meant to stay — a regression. So it registers a
+  **coexisting hold** (`beginCoexisting(.liveTranslation)` / `endCoexisting`): pure bookkeeping, its
+  tuned `.measurement` activation untouched, no preemption, no deactivation.
+- **`TextToSpeechService`** — output rider that ducks other apps via the wake-word
+  `pauseOtherAudio`/`resumeOtherAudio` hold; not a mic owner. Registers a coexisting
+  `.textToSpeech` hold around `beginPause`/`endPause` (its existing ducking untouched).
+
+These make the coordinator the **complete source of truth** for audio usage (`audioActivity` =
+exclusive owner + coexisting riders) without changing any tuned behaviour.
+
+**Deferred (next increments):**
+- **`TranscriptionService`** — reuses the wake-word engine (no own `setActive`); it already runs
+  under wake word's ownership, so no lease is needed. Revisit only if standalone recording grows a
+  session of its own.
+- **`AppState.switchMode`** — the manual *stop → sleep 500 ms → start* is a hardware-settling delay;
+  trimming it needs on-device validation, so it stays until then.
 
 ## Build order
 1. **Ledger + tests** — pure arbitration, fully tested. ✅
@@ -85,7 +97,9 @@ Wraps the ledger behind a serial state queue and performs the real work:
    generation) so a mid-session reset never double-deactivates. ✅
 4. **Wake-word adoption** — register-only `assumeOwnership(.wakeWord)` after each successful
    `configureAudioSession`; deactivation through `release`; tuned activation + pause/resume untouched. ✅
-5. **(Next)** TTS duck + translation/transcription, then trim `switchMode`.
+5. **Coexisting riders** — `beginCoexisting`/`endCoexisting` + `audioActivity` snapshot; adopted by
+   live translation and TTS as non-exclusive holds (no preemption, no deactivation). ✅
+6. **(Next)** trim `switchMode`'s settling sleep — on-device only.
 
 ## Tests
 - `AudioSessionLedger`: acquire on free session (no preemption, generation 1); second acquire

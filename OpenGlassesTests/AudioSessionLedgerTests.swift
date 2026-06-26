@@ -85,6 +85,42 @@ final class AudioSessionLedgerTests: XCTestCase {
         XCTAssertEqual(ledger.current, wake2)
     }
 
+    // MARK: - Coexisting (non-exclusive) holds
+
+    func testCoexistingHoldDoesNotChangeExclusiveOwner() {
+        var ledger = AudioSessionLedger()
+        let wake = ledger.acquire(.wakeWord, token: tokenA).lease
+        ledger.beginCoexisting(.liveTranslation, token: tokenB)
+        XCTAssertEqual(ledger.current, wake, "a coexisting rider must not preempt the owner")
+        XCTAssertEqual(ledger.coexistingOwners, [.liveTranslation])
+    }
+
+    func testEndingCoexistingHoldDoesNotDeactivate() {
+        var ledger = AudioSessionLedger()
+        let wake = ledger.acquire(.wakeWord, token: tokenA).lease
+        ledger.beginCoexisting(.textToSpeech, token: tokenB)
+        ledger.endCoexisting(token: tokenB)
+        XCTAssertEqual(ledger.coexistingOwners, [])
+        XCTAssertEqual(ledger.current, wake, "ending a rider leaves the owner intact")
+    }
+
+    func testCoexistingOwnersAreDeduplicatedAndOrdered() {
+        var ledger = AudioSessionLedger()
+        ledger.beginCoexisting(.textToSpeech, token: UUID())
+        ledger.beginCoexisting(.liveTranslation, token: UUID())
+        ledger.beginCoexisting(.textToSpeech, token: UUID())  // a second TTS hold
+        // Deduplicated, and in AudioSessionOwner.allCases order (liveTranslation before textToSpeech).
+        XCTAssertEqual(ledger.coexistingOwners, [.liveTranslation, .textToSpeech])
+    }
+
+    func testReleasingExclusiveOwnerStillDeactivatesWithCoexistingRidersPresent() {
+        var ledger = AudioSessionLedger()
+        let wake = ledger.acquire(.wakeWord, token: tokenA).lease
+        ledger.beginCoexisting(.textToSpeech, token: tokenB)
+        // Coexisting holds are advisory bookkeeping — they don't block the owner's deactivation.
+        XCTAssertEqual(ledger.release(wake), .deactivate)
+    }
+
     func testReacquireBySameOwnerSupersedesItsOwnEarlierLease() {
         var ledger = AudioSessionLedger()
         let first = ledger.acquire(.geminiLive, token: tokenA).lease
