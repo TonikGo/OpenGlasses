@@ -2532,6 +2532,42 @@ struct Config {
         UserDefaults.standard.set(enabled, forKey: "contextualEmbeddingEnabled")
     }
 
+    // MARK: - Content-Aware Frame Gate (Plan AT)
+
+    /// When `true`, `FrameThrottler` consults a perceptual-hash `FrameGate` after
+    /// its time check and drops frames that are visually indistinguishable from
+    /// the last one sent. Defaults to `false`: the time-only throttle behaves
+    /// exactly as before until this is turned on.
+    static var frameDedupEnabled: Bool {
+        UserDefaults.standard.bool(forKey: "frameDedupEnabled")   // defaults to false
+    }
+
+    static func setFrameDedupEnabled(_ enabled: Bool) {
+        UserDefaults.standard.set(enabled, forKey: "frameDedupEnabled")
+    }
+
+    /// Base dHash Hamming distance (of 64) at/below which two frames are treated
+    /// as the same scene and the candidate is dropped. ~3–5 is "same scene".
+    static var frameDedupHammingThreshold: Int {
+        let v = UserDefaults.standard.object(forKey: "frameDedupHammingThreshold") as? Int
+        return v ?? 4
+    }
+
+    static func setFrameDedupHammingThreshold(_ value: Int) {
+        UserDefaults.standard.set(value, forKey: "frameDedupHammingThreshold")
+    }
+
+    /// Seconds after the last sent frame before the gate forces one through even
+    /// if everything since has been deduped, so the model's view can't go stale.
+    static var frameDedupHeartbeatSeconds: TimeInterval {
+        let v = UserDefaults.standard.object(forKey: "frameDedupHeartbeatSeconds") as? Double
+        return v ?? 12
+    }
+
+    static func setFrameDedupHeartbeatSeconds(_ value: TimeInterval) {
+        UserDefaults.standard.set(value, forKey: "frameDedupHeartbeatSeconds")
+    }
+
     // MARK: - Siri "Ask a Question" Behavior
 
     /// When `true`, the Siri "Ask OpenGlasses a question" intent brings the app to

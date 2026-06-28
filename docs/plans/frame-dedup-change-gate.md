@@ -1,8 +1,11 @@
 # Plan AT — Content-Aware Frame Gate (drop near-duplicate frames before the LLM)
 
-**Status:** 📋 Planned (not built). Small, deterministic, flag-gated — no behaviour change when off.
-The hashing + gating logic is pure and fully headless-testable; only the wiring into the live frame
-path touches the device. No new SPM dependency.
+**Status:** 🚧 Core shipped. `PerceptualHash` (pure dHash + Hamming) and `FrameGate` (pure decision:
+threshold + EMA + heartbeat + `dedupRatio`) are built and wired into `FrameThrottler` behind
+`Config.frameDedupEnabled` (default **off** → byte-for-byte today's behaviour). 18 tests green in
+Release (11 `FrameGateTests` + 7 unchanged `FrameThrottlerTests`). No new SPM dependency. Deferred
+(device-pending): flip the default on after on-device sanity-checking that motion still flows; optional
+Settings UI for the advanced threshold.
 
 ## The problem
 `FrameThrottler` ([Sources/Services/GeminiLive/FrameThrottler.swift](../../OpenGlasses/Sources/Services/GeminiLive/FrameThrottler.swift))
