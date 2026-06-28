@@ -1,9 +1,14 @@
 # Plan AV — Visual State Memory (rolling keyframe scene memory for the live agent)
 
-**Status:** 📋 Planned (not built). Builds on [Content-Aware Frame Gate](frame-dedup-change-gate.md)
-(its distinct frames are the keyframe source). The buffer + context-builder are pure and
-headless-testable; per-keyframe description and prompt injection are the live edge. No new SPM
-dependency.
+**Status:** 🚧 Core shipped. Pure `VisualStateMemory` (ring buffer) + `VisualContextBuilder`
+(relative-time "Recent Visual Context") are built and fully tested; `VisualStateService` wires the
+[Content-Aware Frame Gate](frame-dedup-change-gate.md)'s genuine scene-change keyframes
+(`FrameGate.SendReason` → `FrameThrottler.onKeyframe`) to a hard-rate-limited one-line describe and
+injects the context block into `GeminiLiveSessionManager`'s instruction — all behind
+`Config.visualStateMemoryEnabled` (default **off** → instruction built exactly as before). 12 tests
+green in Release (`VisualStateMemoryTests`). No new SPM dependency. Deferred (device-pending): validate
+the on-device describe budget/quality; thumbnail injection (second flag); optional BrainStore ingest of
+aged keyframes; semantic retrieval over keyframes (v2, pairs with the Embedding Upgrade).
 
 ## The problem
 OpenGlasses' live vision is **stateless per frame**. Gemini Live sees the current throttled frame and

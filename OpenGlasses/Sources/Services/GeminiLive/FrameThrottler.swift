@@ -12,6 +12,13 @@ import UIKit
 class FrameThrottler {
     var onThrottledFrame: ((UIImage) -> Void)?
 
+    /// Fires when a forwarded frame represents a *genuine scene change* (the gate's
+    /// first-frame or distinct send, never a heartbeat re-send) — i.e. a keyframe
+    /// worth describing. Only ever called when the content gate is active
+    /// (`Config.frameDedupEnabled`); with the gate off there is no distinct signal.
+    /// Feeds Visual State Memory (Plan AV).
+    var onKeyframe: ((UIImage) -> Void)?
+
     private var lastFrameTime: Date = .distantPast
     private let interval: TimeInterval
     private var isPaused: Bool = false
@@ -56,9 +63,11 @@ class FrameThrottler {
         guard now.timeIntervalSince(lastFrameTime) >= interval else { return }
 
         // Content gate runs after the time gate. dhash failure → fail open (send).
+        var isKeyframe = false
         if frameGate != nil, let hash = PerceptualHash.dhash(image) {
             let decision = frameGate!.evaluate(hash: hash, now: now.timeIntervalSinceReferenceDate)
             guard decision == .send else { return }
+            isKeyframe = frameGate!.lastSendReason != .heartbeat
         }
 
         lastFrameTime = now
@@ -68,6 +77,7 @@ class FrameThrottler {
                   forwardedCount, receivedCount, dedupRatio)
         }
         onThrottledFrame?(image)
+        if isKeyframe { onKeyframe?(image) }
     }
 
     /// Reset the throttle timer (e.g. on session restart).

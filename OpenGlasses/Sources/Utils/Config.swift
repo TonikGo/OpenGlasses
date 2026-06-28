@@ -2568,6 +2568,53 @@ struct Config {
         UserDefaults.standard.set(value, forKey: "frameDedupHeartbeatSeconds")
     }
 
+    // MARK: - Visual State Memory (Plan AV)
+
+    /// When `true`, the live agent keeps a short rolling memory of distinct scenes
+    /// (keyframes from the frame gate, each one-line described) and injects a
+    /// "Recent Visual Context" block into the session instruction. Defaults to
+    /// `false`: the instruction is built exactly as before. Rides on the content
+    /// gate, so `frameDedupEnabled` must also be on for keyframes to flow.
+    static var visualStateMemoryEnabled: Bool {
+        UserDefaults.standard.bool(forKey: "visualStateMemoryEnabled")   // defaults to false
+    }
+
+    static func setVisualStateMemoryEnabled(_ enabled: Bool) {
+        UserDefaults.standard.set(enabled, forKey: "visualStateMemoryEnabled")
+    }
+
+    /// Maximum keyframes retained in the rolling visual memory (and the cap on how
+    /// many appear in the injected context). 5–8 covers "the last little while".
+    static var visualStateMaxKeyframes: Int {
+        let v = UserDefaults.standard.object(forKey: "visualStateMaxKeyframes") as? Int
+        return v ?? 6
+    }
+
+    static func setVisualStateMaxKeyframes(_ value: Int) {
+        UserDefaults.standard.set(value, forKey: "visualStateMaxKeyframes")
+    }
+
+    /// Minimum seconds between keyframe describe calls — a hard rate-limit so the
+    /// per-keyframe LLM description stays a small, bounded cost.
+    static var visualStateDescribeMinInterval: TimeInterval {
+        let v = UserDefaults.standard.object(forKey: "visualStateDescribeMinInterval") as? Double
+        return v ?? 6
+    }
+
+    static func setVisualStateDescribeMinInterval(_ value: TimeInterval) {
+        UserDefaults.standard.set(value, forKey: "visualStateDescribeMinInterval")
+    }
+
+    /// When `true`, keyframe thumbnails are persisted and may be attached to the
+    /// agent turn (heavier). Default `false`: text-only "Recent Visual Context".
+    static var visualStateInjectThumbnails: Bool {
+        UserDefaults.standard.bool(forKey: "visualStateInjectThumbnails")   // defaults to false
+    }
+
+    static func setVisualStateInjectThumbnails(_ enabled: Bool) {
+        UserDefaults.standard.set(enabled, forKey: "visualStateInjectThumbnails")
+    }
+
     // MARK: - Siri "Ask a Question" Behavior
 
     /// When `true`, the Siri "Ask OpenGlasses a question" intent brings the app to

@@ -34,6 +34,14 @@ struct FrameGate {
     private(set) var evaluatedCount: Int = 0
     private(set) var droppedCount: Int = 0
 
+    /// Why the most recent `.send` decision was made. `.distinct` marks a genuine
+    /// scene change (a keyframe worth describing); `.firstFrame` the session's
+    /// first send; `.heartbeat` a forced re-send of an unchanged scene. `nil`
+    /// until the first `.send`. Consumers that only care about *new* scenes
+    /// (e.g. Visual State Memory) should ignore `.heartbeat`.
+    enum SendReason { case firstFrame, distinct, heartbeat }
+    private(set) var lastSendReason: SendReason?
+
     /// - Parameters:
     ///   - hammingThreshold: base "same scene" distance (default 4 of 64).
     ///   - heartbeat: force-send deadline in seconds (default 12).
@@ -61,7 +69,7 @@ struct FrameGate {
 
         // First frame of the session always goes.
         guard let lastHash = lastSentHash else {
-            recordSend(hash: hash, now: now)
+            recordSend(hash: hash, now: now, reason: .firstFrame)
             return .send
         }
 
@@ -71,7 +79,7 @@ struct FrameGate {
         // Heartbeat: if we've sent nothing for too long, force this one through
         // so the model's visual context stays fresh even in a static scene.
         if let last = lastSentTime, heartbeat > 0, now - last >= heartbeat {
-            recordSend(hash: hash, now: now)
+            recordSend(hash: hash, now: now, reason: .heartbeat)
             return .send
         }
 
@@ -80,7 +88,7 @@ struct FrameGate {
             return .drop
         }
 
-        recordSend(hash: hash, now: now)
+        recordSend(hash: hash, now: now, reason: .distinct)
         return .send
     }
 
@@ -91,13 +99,15 @@ struct FrameGate {
         changeEMA = nil
         evaluatedCount = 0
         droppedCount = 0
+        lastSendReason = nil
     }
 
     // MARK: - Internals
 
-    private mutating func recordSend(hash: UInt64, now: TimeInterval) {
+    private mutating func recordSend(hash: UInt64, now: TimeInterval, reason: SendReason) {
         lastSentHash = hash
         lastSentTime = now
+        lastSendReason = reason
     }
 
     private mutating func updateEMA(with distance: Int) {
