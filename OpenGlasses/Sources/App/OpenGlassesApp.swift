@@ -924,6 +924,14 @@ class AppState: ObservableObject, AppStateProtocol {
         // camera enables the hands-free scan → OCR source.
         StudyService.shared.configure(llm: llmService, documentStore: documentStore, tts: speechService, camera: cameraService)
 
+        // Skill Self-Evolution (Plan AW) — give the loop its LLM analyzer. The capture hook
+        // (NativeToolRouter) feeds tool-error samples; this completes the loop so proposals reach the
+        // review inbox. Agent-Mode-gated throughout; inert until the user turns Agent Mode on.
+        let llm = llmService
+        SkillEvolutionService.shared.analyzer = LLMSkillEvolutionAnalyzer(complete: { system, user in
+            try await llm.completeStateless(user, system: system)
+        })
+
         // Memory & Recall Phase 2 — index conversation turns; recall summarizes via the user's
         // active provider (on-device when that's their choice). Backfill existing history once.
         conversationStore.recallIndex = conversationIndex

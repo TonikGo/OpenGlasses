@@ -5,11 +5,15 @@
 (name Jaccard + body overlap) + `SkillProposal.validate` (slug rules, required fields, length caps,
 auto `dyn-N`), the `EvolvedSkillStore` (SQLite pending/approved/dismissed lifecycle, "never re-propose"
 by name), and `SkillEvolutionService` (Agent-Mode-gated `record` → `evolveIfNeeded` over a
-`SkillEvolutionAnalyzer` seam; `approve` routes to a `VoiceSkill`). 17 tests. **Agent-Mode-gated** and
-**human-in-the-loop by design** — the loop *proposes*, the user *approves*; nothing self-authored is
-injected unreviewed. **Deferred (live edge):** the capture hooks that feed `record()` from real
-tool-errors/corrections (touches `AgentRunner`/`AppState`) and the Suggested-Skills review UI. The
-embedding-based **skill retrieval companion** already shipped ([#127](https://github.com/straff2002/OpenGlasses/pull/127)/[#129](https://github.com/straff2002/OpenGlasses/pull/129)).
+`SkillEvolutionAnalyzer` seam; `approve` routes to a `VoiceSkill`). The loop now runs **end-to-end**:
+the `NativeToolRouter` capture hook records genuine tool-execution errors (pure `ToolFailureFilter`
+keeps timeouts/safety-declines out), `AppState` wires the `LLMSkillEvolutionAnalyzer`, and the
+**Suggested Skills** review inbox (Settings, Agent-Mode-gated, pending-count badge) is where the user
+approves/dismisses. **Agent-Mode-gated** and **human-in-the-loop by design** — the loop *proposes*, the
+user *approves*; nothing self-authored is injected unreviewed. 21 tests. **Deferred:** the
+user-correction capture signal ("no, that's wrong") — needs prior-turn context in `AppState`; tool
+errors are the conservative first signal. The embedding-based **skill retrieval companion** already
+shipped ([#127](https://github.com/straff2002/OpenGlasses/pull/127)/[#129](https://github.com/straff2002/OpenGlasses/pull/129)).
 
 ## The problem
 OpenGlasses' skills are **static**: `InstalledSkillStore`, `VoiceSkillStore`, OpenClaw skills, and the

@@ -179,6 +179,17 @@ final class NativeToolRouter {
             NSLog("[NativeToolRouter] Tool %@ succeeded in %.1fs: %@", name, duration, String(text.prefix(200)))
         case .failure(let err):
             NSLog("[NativeToolRouter] Tool %@ failed in %.1fs: %@", name, duration, err)
+            // Skill Self-Evolution (Plan AW): a genuine tool-execution error is a skill-gap signal.
+            // Record it off the critical path; the service is Agent-Mode-gated and re-checks. Timeouts
+            // and intentional outcomes are filtered out so the proposal bank stays clean.
+            if Config.agentModeEnabled, ToolFailureFilter.shouldRecord(err) {
+                let sample = FailureSample(kind: .toolError, prompt: "tool: \(name)", response: err,
+                                          toolName: name, at: Date())
+                Task { @MainActor in
+                    SkillEvolutionService.shared.record(sample)
+                    _ = await SkillEvolutionService.shared.evolveIfNeeded()
+                }
+            }
         }
 
         return result

@@ -385,6 +385,25 @@ struct SettingsView: View {
                 } label: {
                     Label("Voice Skills", systemImage: "waveform")
                 }
+
+                if Config.agentModeEnabled {
+                    NavigationLink {
+                        SuggestedSkillsView()
+                    } label: {
+                        HStack {
+                            Label("Suggested Skills", systemImage: "lightbulb.max")
+                            Spacer()
+                            let count = EvolvedSkillStore.shared.pending().count
+                            if count > 0 {
+                                Text("\(count)")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 7).padding(.vertical, 2)
+                                    .background(Capsule().fill(.red))
+                            }
+                        }
+                    }
+                }
             } header: {
                 Text("Tools the AI Can Use")
             } footer: {
