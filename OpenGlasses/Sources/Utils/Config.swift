@@ -2484,6 +2484,33 @@ struct Config {
         return UserDefaults.standard.integer(forKey: key)
     }
 
+    // MARK: - Project Memory
+
+    /// When `true`, notes scoped to the active Field Assist job (see [[ProjectMemory]]) are injected
+    /// into the prompt while that job is active. Default **off** — additive context, gated so the
+    /// prompt is unchanged until switched on. Naturally empty when no job is active or no notes exist.
+    static var projectMemoryEnabled: Bool {
+        UserDefaults.standard.bool(forKey: "projectMemoryEnabled")   // defaults to false
+    }
+
+    static func setProjectMemoryEnabled(_ enabled: Bool) {
+        UserDefaults.standard.set(enabled, forKey: "projectMemoryEnabled")
+    }
+
+    // MARK: - User Memory Retrieval
+
+    /// When `true`, the shared-memory injection passes the current turn as a query to
+    /// `SemanticMemoryStore.systemPromptContext(query:)`, so only the facts relevant to the turn are
+    /// injected (its existing top-8 semantic search) instead of dumping every fact. Default **off**;
+    /// when off the call passes `query: nil`, reproducing today's dump-all behaviour exactly.
+    static var userMemoryRetrievalEnabled: Bool {
+        UserDefaults.standard.bool(forKey: "userMemoryRetrievalEnabled")   // defaults to false
+    }
+
+    static func setUserMemoryRetrievalEnabled(_ enabled: Bool) {
+        UserDefaults.standard.set(enabled, forKey: "userMemoryRetrievalEnabled")
+    }
+
     // MARK: - Siri "Ask a Question" Behavior
 
     /// When `true`, the Siri "Ask OpenGlasses a question" intent brings the app to
