@@ -62,3 +62,6 @@ Config/Info/Info.personal.plist
 xcuserdata/
 *.xcuserstate
 *.pbxproj.backup
+
+# Xcode Cloud post-clone tool downloads (XcodeGen release)
+.ci-tools/
