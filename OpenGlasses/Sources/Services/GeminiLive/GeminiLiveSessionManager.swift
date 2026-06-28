@@ -273,9 +273,15 @@ class GeminiLiveSessionManager: ObservableObject {
 
         // Wire frame throttler to Gemini
         frameThrottler.reset()
+        VisualStateService.shared.reset()
         frameThrottler.onThrottledFrame = { [weak self] image in
             guard let self else { return }
             self.geminiService.sendVideoFrame(image: image)
+        }
+        // Feed genuine scene-change keyframes to Visual State Memory (Plan AV).
+        // No-op unless visualStateMemoryEnabled; fires only when the content gate is active.
+        frameThrottler.onKeyframe = { image in
+            VisualStateService.shared.considerKeyframe(image)
         }
 
         // Audio setup — use iPhone mode when camera NOT streaming (no glasses connected),
@@ -554,6 +560,12 @@ class GeminiLiveSessionManager: ObservableObject {
         // Grounds Gemini in domain knowledge (refrigeration, IT, health) with source attribution.
         if let vaultContext = FieldSessionService.shared.promptContext() {
             prompt += "\n\n\(vaultContext)"
+        }
+
+        // Inject rolling visual scene memory (Plan AV) when enabled — temporal
+        // awareness of what the user was just looking at. No-op when disabled.
+        if let visualContext = VisualStateService.shared.promptContext() {
+            prompt += "\n\n\(visualContext)"
         }
 
         // Security baseline: untrusted-content / prompt-injection policy (mirrors Direct Mode).

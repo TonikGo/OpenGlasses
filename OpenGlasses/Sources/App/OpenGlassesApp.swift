@@ -920,6 +920,9 @@ class AppState: ObservableObject, AppStateProtocol {
         // Configure Safety Assessment (HECA) — runs through the structured-vision provider layer.
         SafetyAssessmentService.shared.configure(camera: cameraService, llm: llmService)
 
+        // Visual State Memory (Plan AV) — the keyframe describe needs a vision LLM.
+        VisualStateService.shared.llm = llmService
+
         // Configure Study Mode — generates decks from documents via the text→JSON LLM call;
         // camera enables the hands-free scan → OCR source.
         StudyService.shared.configure(llm: llmService, documentStore: documentStore, tts: speechService, camera: cameraService)
