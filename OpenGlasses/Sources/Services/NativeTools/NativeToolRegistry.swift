@@ -162,6 +162,9 @@ final class NativeToolRegistry {
         // Personal Health Vault (Plan B) — always registered; the tool checks the Medical
         // Compliance unlock at execution time.
         register(HealthVaultTool())
+        // Personal Health-Safety Advisor (Plan AB) — "is this safe for me?" over the vault,
+        // backstopped by a deterministic interaction rubric. Same Medical Compliance gate.
+        register(HealthSafetyTool())
         // Personal Notes Vault — free second-brain over VaultStore.
         register(NotesVaultTool())
         // Medication Identifier (Plan I) — OCR a label, cross-check the Health Vault. Needs camera.

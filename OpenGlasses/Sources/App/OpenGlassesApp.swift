@@ -928,6 +928,9 @@ class AppState: ObservableObject, AppStateProtocol {
         // Visual State Memory (Plan AV) — the keyframe describe needs a vision LLM.
         VisualStateService.shared.llm = llmService
 
+        // Health-Safety Advisor (Plan AB) — grounded long-tail reasoning for "is this safe for me?".
+        HealthSafetyAdvisor.shared.llm = llmService
+
         // Projects (Plan AN) — grounds the prompt in the active project's documents.
         ProjectContextService.shared.configure(
             documentStore: documentStore,
